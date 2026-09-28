@@ -1,0 +1,110 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clients   Client[]
+  invoices  Invoice[]
+
+  @@map("users")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices  Invoice[]
+
+  @@map("clients")
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  number      String        // e.g. INV-0042
+  title       String
+  status      InvoiceStatus @default(PENDING)
+  dueDate     DateTime
+  subtotal    Float
+  tax         Float         @default(0)
+  total       Float
+  notes       String?
+  userId      String
+  clientId    String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client      Client        @relation(fields: [clientId], references: [id])
+  items       InvoiceItem[]
+  reminders   Reminder[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  description String
+  quantity    Float
+  unitPrice   Float
+  total       Float
+  invoiceId   String
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_items")
+}
+
+model Reminder {
+  id         String         @id @default(cuid())
+  type       ReminderType
+  status     ReminderStatus @default(PENDING)
+  sentAt     DateTime?
+  invoiceId  String
+  createdAt  DateTime       @default(now())
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("reminders")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  LATE
+  CANCELLED
+}
+
+enum ReminderType {
+  DAY_1   // واتساب/إيميل ودي
+  DAY_3   // إيميل رسمي
+  DAY_7   // تحذير نهائي
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+}
